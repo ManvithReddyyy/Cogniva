@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cogniva</title>
+    <meta name="description" content="Subscribe to curated AI news delivered to your inbox.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fff;
+            color: #111;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrap {
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px 16px;
+            background: #fff;
+            border: 1.5px solid #ddd;
+            border-radius: 10px;
+            color: #111;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 12px;
+        }
+
+        input::placeholder { color: #aaa; }
+        input:focus { border-color: #999; }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            background: #666;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .msg {
+            margin-top: 14px;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .msg.show { opacity: 1; }
+        .msg.ok { color: #333; }
+        .msg.err { color: #c00; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>need AI news? subscribe</h1>
+        <form onsubmit="sub(event)">
+            <input type="email" id="e" placeholder="your email" required autocomplete="email" inputmode="email">
+            <button type="submit" id="b">subscribe</button>
+        </form>
+        <div class="msg" id="m"></div>
+    </div>
+
+    <script>
+        async function sub(ev) {
+            ev.preventDefault();
+            const b = document.getElementById('b');
+            b.disabled = true;
+            b.textContent = '...';
+            document.getElementById('m').className = 'msg';
+            try {
+                const r = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: document.getElementById('e').value.trim()})
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.detail);
+                show(d.status === 'already_subscribed' ? 'already subscribed' : 'you are in', 'ok');
+                document.getElementById('e').value = '';
+            } catch(e) {
+                show(e.message || 'something went wrong', 'err');
+            }
+            b.disabled = false;
+            b.textContent = 'subscribe';
+        }
+
+        function show(t, c) {
+            const m = document.getElementById('m');
+            m.textContent = t;
+            m.className = 'msg ' + c + ' show';
+            setTimeout(() => m.classList.remove('show'), 4000);
+        }
+    </script>
+</body>
+</html>
