@@ -5,7 +5,6 @@ description = "Autonomous AI news curation and real-time intelligence pipeline p
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.14.2",
-    "docling>=2.61.2",
     "fastapi>=0.115.0",
     "feedparser>=6.0.12",
     "google-genai>=2.22.0",
