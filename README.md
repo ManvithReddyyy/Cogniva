@@ -88,15 +88,19 @@ Built with SQLAlchemy connected to a Supabase PostgreSQL instance:
 
 ---
 
-## Technical Stack
+## Tech Stack
 
-- **Language**: Python 3.12+
-- **Web Framework**: FastAPI, Uvicorn
-- **LLM Provider**: Google GenAI SDK (Gemini 3.5 Flash Lite)
-- **Database**: PostgreSQL (Supabase), SQLAlchemy ORM
-- **Web Scraping**: BeautifulSoup4, Docling, Feedparser, Youtube Transcript API
-- **Package Manager**: UV (`uv`)
-- **Mail Engine**: SMTP / Resend API
+| Category | Technology | Purpose |
+|---|---|---|
+| **Core Language** | Python 3.12+ | Core pipeline & backend business logic |
+| **Web & API Framework** | FastAPI, Uvicorn | Web server, asynchronous API endpoints, background tasks |
+| **AI / LLM Engine** | Google GenAI SDK, Gemini 3.5 Flash Lite | Text summarization, structured JSON extraction, curation ranking |
+| **Web Scraping & Ingestion** | BeautifulSoup4, Docling, Feedparser, Youtube Transcript API | Content scraping from YouTube, OpenAI RSS, and Anthropic research |
+| **Database & ORM** | PostgreSQL (Supabase), SQLAlchemy ORM | Relational persistence for articles, transcripts, digests, and subscribers |
+| **Email Dispatch Engine** | Gmail SMTP (`smtplib`), Resend API | Reliable multi-provider transactional newsletter delivery |
+| **Package Management** | UV (`uv`) | Fast, reproducible Python dependency resolution |
+| **Frontend UI** | HTML5, Vanilla CSS3 | Lightweight, dark/white minimal subscriber interface |
+| **Deployment & Cloud** | Render Web Services, GitHub Actions | Cloud hosting and automated workflow execution |
 
 ---
 
