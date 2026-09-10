@@ -58,7 +58,6 @@ target/
 
 # DotEnv configuration
 .env
-README.md
 
 # Database
 *.db
