@@ -19,9 +19,6 @@ from app.database.repository import Repository
 from app.services.process_email import send_digest_email
 from app.daily_runner import run_daily_pipeline
 
-# Create tables on startup (including subscribers)
-Base.metadata.create_all(engine)
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -53,6 +50,12 @@ def start_background_scheduler():
 
 @app.on_event("startup")
 def on_startup():
+    try:
+        logger.info("Initializing database tables...")
+        Base.metadata.create_all(engine)
+        logger.info("Database tables verified.")
+    except Exception as e:
+        logger.error(f"Database startup notice: {e}")
     start_background_scheduler()
 
 
@@ -125,4 +128,5 @@ if static_dir.exists():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("app.api:app", host="0.0.0.0", port=port)
+    logger.info(f"Starting server directly on 0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
