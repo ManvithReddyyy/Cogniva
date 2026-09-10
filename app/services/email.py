@@ -40,7 +40,35 @@ def send_email(subject: str, body_text: str, body_html: str = None, recipients: 
     if not recipients:
         raise ValueError("No valid recipients provided")
     
-    # Option 1: Try Gmail SMTP if APP_PASSWORD is set
+    # Option 1: Use Brevo REST API (HTTPS Port 443 - Sends to ANY recipient without domain)
+    brevo_key = os.getenv("BREVO_API_KEY")
+    if brevo_key:
+        try:
+            import requests
+            sender_email = (os.getenv("MY_EMAIL") or "news@cogniva.com").split(",")[0].strip()
+            payload = {
+                "sender": {"name": "Cogniva", "email": sender_email},
+                "to": [{"email": r} for r in recipients],
+                "subject": subject,
+                "htmlContent": body_html or f"<pre>{body_text}</pre>",
+                "textContent": body_text
+            }
+            headers = {
+                "accept": "application/json",
+                "api-key": brevo_key.strip(),
+                "content-type": "application/json"
+            }
+            resp = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=15)
+            if resp.status_code in [200, 201, 202]:
+                return
+            else:
+                import logging
+                logging.getLogger(__name__).warning(f"Brevo API returned {resp.status_code}: {resp.text}")
+        except Exception as brevo_err:
+            import logging
+            logging.getLogger(__name__).warning(f"Brevo API error: {brevo_err}")
+
+    # Option 2: Try Gmail SMTP if APP_PASSWORD is set (Works locally)
     my_email = os.getenv("MY_EMAIL")
     app_pwd = os.getenv("APP_PASSWORD")
     if my_email and app_pwd:
@@ -73,26 +101,30 @@ def send_email(subject: str, body_text: str, body_html: str = None, recipients: 
         except Exception as smtp_err:
             import logging
             logging.getLogger(__name__).warning(
-                f"SMTP failed ({smtp_err}). Falling back to Resend API (HTTPS)..."
+                f"SMTP failed ({smtp_err}). Falling back to HTTP email APIs..."
             )
 
-    # Option 2: Fallback to Resend API (HTTPS Port 443 - Works on Render)
+    # Option 3: Fallback to Resend API (HTTPS Port 443 - Works on Render)
     resend_key = os.getenv("RESEND_API_KEY")
     if resend_key:
-        import resend
-        resend.api_key = resend_key.strip()
-        from_email = os.getenv("RESEND_FROM", "Cogniva <onboarding@resend.dev>").strip()
-        params = {
-            "from": from_email,
-            "to": recipients,
-            "subject": subject,
-            "html": body_html or f"<pre>{body_text}</pre>",
-            "text": body_text,
-        }
-        resend.Emails.send(params)
-        return
+        try:
+            import resend
+            resend.api_key = resend_key.strip()
+            from_email = os.getenv("RESEND_FROM", "Cogniva <onboarding@resend.dev>").strip()
+            params = {
+                "from": from_email,
+                "to": recipients,
+                "subject": subject,
+                "html": body_html or f"<pre>{body_text}</pre>",
+                "text": body_text,
+            }
+            resend.Emails.send(params)
+            return
+        except Exception as resend_err:
+            import logging
+            logging.getLogger(__name__).warning(f"Resend API error: {resend_err}")
 
-    raise ValueError("Email delivery failed: Neither SMTP nor Resend API succeeded.")
+    raise ValueError("Email delivery failed: Neither Brevo, SMTP, nor Resend API succeeded.")
 
 
 def markdown_to_html(markdown_text: str) -> str:
