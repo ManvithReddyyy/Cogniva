@@ -40,29 +40,43 @@ def send_email(subject: str, body_text: str, body_html: str = None, recipients: 
     if not recipients:
         raise ValueError("No valid recipients provided")
     
-    # Option 1: Use Gmail SMTP if APP_PASSWORD is set (Sends to ANY recipient)
+    # Option 1: Try Gmail SMTP if APP_PASSWORD is set
     my_email = os.getenv("MY_EMAIL")
     app_pwd = os.getenv("APP_PASSWORD")
     if my_email and app_pwd:
-        sender_email = my_email.split(",")[0].strip()
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Cogniva <{sender_email}>"
-        msg["To"] = ", ".join(recipients)
-        
-        part1 = MIMEText(body_text, "plain")
-        msg.attach(part1)
-        
-        if body_html:
-            part2 = MIMEText(body_html, "html")
-            msg.attach(part2)
-        
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(sender_email, app_pwd)
-            smtp.sendmail(sender_email, recipients, msg.as_string())
-        return
+        try:
+            sender_email = my_email.split(",")[0].strip()
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"Cogniva <{sender_email}>"
+            msg["To"] = ", ".join(recipients)
+            
+            part1 = MIMEText(body_text, "plain")
+            msg.attach(part1)
+            
+            if body_html:
+                part2 = MIMEText(body_html, "html")
+                msg.attach(part2)
+            
+            # Try port 465 first, fallback to 587
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
+                    smtp.login(sender_email, app_pwd)
+                    smtp.sendmail(sender_email, recipients, msg.as_string())
+                    return
+            except (OSError, smtplib.SMTPException):
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
+                    smtp.starttls()
+                    smtp.login(sender_email, app_pwd)
+                    smtp.sendmail(sender_email, recipients, msg.as_string())
+                    return
+        except Exception as smtp_err:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"SMTP failed ({smtp_err}). Falling back to Resend API (HTTPS)..."
+            )
 
-    # Option 2: Use Resend API
+    # Option 2: Fallback to Resend API (HTTPS Port 443 - Works on Render)
     resend_key = os.getenv("RESEND_API_KEY")
     if resend_key:
         import resend
@@ -78,7 +92,7 @@ def send_email(subject: str, body_text: str, body_html: str = None, recipients: 
         resend.Emails.send(params)
         return
 
-    raise ValueError("Neither APP_PASSWORD nor RESEND_API_KEY is configured.")
+    raise ValueError("Email delivery failed: Neither SMTP nor Resend API succeeded.")
 
 
 def markdown_to_html(markdown_text: str) -> str:
