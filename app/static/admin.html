@@ -24,6 +24,38 @@
             margin: 0 auto;
         }
 
+        /* Login Screen */
+        #loginScreen {
+            max-width: 360px;
+            margin: 100px auto 0 auto;
+            text-align: center;
+        }
+
+        #loginScreen h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111111;
+            margin-bottom: 6px;
+            letter-spacing: -0.4px;
+        }
+
+        #loginScreen p {
+            font-size: 13px;
+            color: #777777;
+            margin-bottom: 24px;
+        }
+
+        .login-box {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Dashboard Screen */
+        #dashboardScreen {
+            display: none;
+        }
+
         header {
             display: flex;
             justify-content: space-between;
@@ -40,11 +72,21 @@
             letter-spacing: -0.4px;
         }
 
+        .header-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
         .nav-link {
             font-size: 13px;
             color: #777777;
             text-decoration: none;
+            cursor: pointer;
             transition: color 0.15s ease;
+            background: none;
+            border: none;
+            padding: 0;
         }
 
         .nav-link:hover {
@@ -72,7 +114,7 @@
             gap: 10px;
         }
 
-        input[type="email"] {
+        input {
             flex: 1;
             padding: 10px 14px;
             font-size: 13px;
@@ -84,7 +126,7 @@
             transition: border-color 0.15s ease;
         }
 
-        input[type="email"]:focus {
+        input:focus {
             border-color: #555555;
         }
 
@@ -240,60 +282,151 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Cogniva Subscribers</h1>
-            <a href="/" class="nav-link">Back to Signup Page</a>
-        </header>
-
-        <div id="alertMsg"></div>
-
-        <!-- Add Subscriber -->
-        <div class="add-box">
-            <div class="add-box-title">Add New Subscriber</div>
-            <form id="addForm" onsubmit="handleAddSubscriber(event)">
-                <div class="input-group">
-                    <input type="email" id="emailInput" placeholder="Enter email address..." required autocomplete="off">
-                    <button type="submit" id="addBtn" class="btn-primary">Add Subscriber</button>
+        <!-- Password Login Screen -->
+        <div id="loginScreen">
+            <h1>Cogniva Admin</h1>
+            <p>Enter your password to access subscriber controls</p>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="login-box">
+                    <input type="password" id="passwordInput" placeholder="Password..." required autofocus>
+                    <button type="submit" id="loginBtn" class="btn-primary">Unlock Dashboard</button>
                 </div>
             </form>
-            <div class="add-note">New subscribers receive today's AI news digest instantly upon being added.</div>
+            <div id="loginAlert" style="margin-top: 14px; font-size: 12px; color: #666; display: none;"></div>
         </div>
 
-        <!-- Subscribers Table -->
-        <div class="list-header">
-            <div class="list-title">All Subscribers</div>
-            <div class="list-count" id="countDisplay">0 subscribers</div>
-        </div>
+        <!-- Authenticated Dashboard -->
+        <div id="dashboardScreen">
+            <header>
+                <h1>Cogniva Subscribers</h1>
+                <div class="header-links">
+                    <a href="/" class="nav-link" target="_blank">Signup Page</a>
+                    <button type="button" class="nav-link" onclick="handleLogout()">Lock Dashboard</button>
+                </div>
+            </header>
 
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Email Address</th>
-                        <th>Date Added (UTC)</th>
-                        <th>Status</th>
-                        <th style="text-align: right;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="4" class="empty-text">Loading subscribers...</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div id="alertMsg"></div>
+
+            <!-- Add Subscriber -->
+            <div class="add-box">
+                <div class="add-box-title">Add New Subscriber</div>
+                <form id="addForm" onsubmit="handleAddSubscriber(event)">
+                    <div class="input-group">
+                        <input type="email" id="emailInput" placeholder="Enter email address..." required autocomplete="off">
+                        <button type="submit" id="addBtn" class="btn-primary">Add Subscriber</button>
+                    </div>
+                </form>
+                <div class="add-note">New subscribers receive today's AI news digest instantly upon being added.</div>
+            </div>
+
+            <!-- Subscribers Table -->
+            <div class="list-header">
+                <div class="list-title">All Subscribers</div>
+                <div class="list-count" id="countDisplay">0 subscribers</div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Email Address</th>
+                            <th>Date Added (UTC)</th>
+                            <th>Status</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="4" class="empty-text">Loading subscribers...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
-        async function fetchSubscribers() {
+        const AUTH_KEY = 'cogniva_admin_auth';
+
+        function getAuthHeader() {
+            return sessionStorage.getItem(AUTH_KEY) || '';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const input = document.getElementById('passwordInput');
+            const btn = document.getElementById('loginBtn');
+            const alertBox = document.getElementById('loginAlert');
+            const pwd = input.value.trim();
+
+            if (!pwd) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Verifying...';
+
             try {
-                const res = await fetch('/api/admin/subscribers');
+                const res = await fetch('/api/admin/subscribers', {
+                    headers: { 'X-Admin-Password': pwd }
+                });
+
+                if (res.status === 401) {
+                    alertBox.style.display = 'block';
+                    alertBox.innerText = 'Incorrect password. Access denied.';
+                    input.value = '';
+                    input.focus();
+                    return;
+                }
+
+                if (!res.ok) throw new Error('Verification failed');
+
+                const data = await res.json();
+                sessionStorage.setItem(AUTH_KEY, pwd);
+                showDashboard(data.subscribers || []);
+            } catch (err) {
+                alertBox.style.display = 'block';
+                alertBox.innerText = 'Error connecting to server. Please retry.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Unlock Dashboard';
+            }
+        }
+
+        function handleLogout() {
+            sessionStorage.removeItem(AUTH_KEY);
+            document.getElementById('dashboardScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'block';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function showDashboard(subscribers) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboardScreen').style.display = 'block';
+            renderTable(subscribers);
+        }
+
+        async function fetchSubscribers() {
+            const pwd = getAuthHeader();
+            if (!pwd) {
+                handleLogout();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/subscribers', {
+                    headers: { 'X-Admin-Password': pwd }
+                });
+
+                if (res.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
                 if (!res.ok) throw new Error('Failed to load subscribers');
                 const data = await res.json();
-                renderTable(data.subscribers || []);
+                showDashboard(data.subscribers || []);
             } catch (err) {
                 console.error(err);
-                showAlert('Failed to load subscribers. Please refresh.', true);
+                showAlert('Failed to load subscribers.', true);
             }
         }
 
@@ -340,14 +473,17 @@
             try {
                 const res = await fetch('/api/admin/subscribers/add', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': getAuthHeader()
+                    },
                     body: JSON.stringify({ email })
                 });
 
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Failed to add subscriber');
 
-                showAlert('Subscriber added. News digest email dispatched to ' + email + ' immediately.');
+                showAlert('Subscriber added. Digest email dispatched to ' + email + ' immediately.');
                 input.value = '';
                 fetchSubscribers();
             } catch (err) {
@@ -362,7 +498,10 @@
             try {
                 const res = await fetch('/api/admin/subscribers/toggle', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': getAuthHeader()
+                    },
                     body: JSON.stringify({ email })
                 });
 
@@ -384,7 +523,10 @@
             try {
                 const res = await fetch('/api/admin/subscribers/delete', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': getAuthHeader()
+                    },
                     body: JSON.stringify({ email })
                 });
 
@@ -416,7 +558,10 @@
                 .replace(/'/g, '&#039;');
         }
 
-        fetchSubscribers();
+        // Check if already logged in this session
+        if (getAuthHeader()) {
+            fetchSubscribers();
+        }
     </script>
 </body>
 </html>

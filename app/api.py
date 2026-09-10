@@ -3,8 +3,9 @@ import re
 import logging
 import threading
 import time
+from typing import Optional
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -145,8 +146,15 @@ async def health():
     return {"status": "ok"}
 
 
+def check_admin_auth(x_admin_password: Optional[str]):
+    configured_pwd = os.getenv("ADMIN_PASSWORD", "admin123").strip()
+    if not x_admin_password or x_admin_password.strip() != configured_pwd:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin password")
+
+
 @app.get("/api/admin/subscribers")
-async def get_admin_subscribers():
+async def get_admin_subscribers(x_admin_password: Optional[str] = Header(None, alias="X-Admin-Password")):
+    check_admin_auth(x_admin_password)
     try:
         repo = Repository()
         subscribers = repo.get_all_subscribers_details()
@@ -157,7 +165,12 @@ async def get_admin_subscribers():
 
 
 @app.post("/api/admin/subscribers/add")
-async def add_subscriber_manually(request: EmailRequest, background_tasks: BackgroundTasks):
+async def add_subscriber_manually(
+    request: EmailRequest,
+    background_tasks: BackgroundTasks,
+    x_admin_password: Optional[str] = Header(None, alias="X-Admin-Password")
+):
+    check_admin_auth(x_admin_password)
     email = request.email.strip().lower()
     if not is_valid_email(email):
         raise HTTPException(status_code=400, detail="Invalid email address")
@@ -176,7 +189,11 @@ async def add_subscriber_manually(request: EmailRequest, background_tasks: Backg
 
 
 @app.post("/api/admin/subscribers/toggle")
-async def toggle_subscriber(request: EmailRequest):
+async def toggle_subscriber(
+    request: EmailRequest,
+    x_admin_password: Optional[str] = Header(None, alias="X-Admin-Password")
+):
+    check_admin_auth(x_admin_password)
     email = request.email.strip().lower()
     try:
         repo = Repository()
@@ -189,7 +206,11 @@ async def toggle_subscriber(request: EmailRequest):
 
 
 @app.post("/api/admin/subscribers/delete")
-async def delete_subscriber(request: EmailRequest):
+async def delete_subscriber(
+    request: EmailRequest,
+    x_admin_password: Optional[str] = Header(None, alias="X-Admin-Password")
+):
+    check_admin_auth(x_admin_password)
     email = request.email.strip().lower()
     try:
         repo = Repository()
