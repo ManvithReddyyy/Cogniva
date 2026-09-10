@@ -293,4 +293,40 @@ class Repository:
         subscribers = self.session.query(Subscriber).filter_by(is_active=True).all()
         return [s.email for s in subscribers]
 
+    def get_all_subscribers_details(self) -> List[dict]:
+        """Get full subscriber details for admin dashboard."""
+        subscribers = self.session.query(Subscriber).order_by(Subscriber.subscribed_at.desc()).all()
+        return [
+            {
+                "email": s.email,
+                "subscribed_at": s.subscribed_at.strftime("%Y-%m-%d %H:%M:%S UTC") if s.subscribed_at else "N/A",
+                "is_active": s.is_active
+            }
+            for s in subscribers
+        ]
+
+    def toggle_subscriber_status(self, email: str) -> dict:
+        """Pause or resume a subscriber."""
+        email = email.strip().lower()
+        sub = self.session.query(Subscriber).filter_by(email=email).first()
+        if not sub:
+            return {"status": "not_found", "email": email}
+        sub.is_active = not sub.is_active
+        self.session.commit()
+        return {
+            "status": "active" if sub.is_active else "paused",
+            "is_active": sub.is_active,
+            "email": email
+        }
+
+    def delete_subscriber(self, email: str) -> dict:
+        """Permanently delete a subscriber."""
+        email = email.strip().lower()
+        sub = self.session.query(Subscriber).filter_by(email=email).first()
+        if not sub:
+            return {"status": "not_found", "email": email}
+        self.session.delete(sub)
+        self.session.commit()
+        return {"status": "deleted", "email": email}
+
 
