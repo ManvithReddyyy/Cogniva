@@ -91,6 +91,7 @@
     <div class="wrap">
         <h1>need AI news? subscribe</h1>
         <form onsubmit="sub(event)">
+            <input type="text" id="n" placeholder="what should we call you?" autocomplete="given-name" maxlength="50">
             <input type="email" id="e" placeholder="your email" required autocomplete="email" inputmode="email">
             <button type="submit" id="b">subscribe</button>
         </form>
@@ -104,16 +105,21 @@
             b.disabled = true;
             b.textContent = '...';
             document.getElementById('m').className = 'msg';
+            const email = document.getElementById('e').value.trim();
+            const name = document.getElementById('n').value.trim();
             try {
+                const body = { email };
+                if (name) body.display_name = name;
                 const r = await fetch('/api/subscribe', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: document.getElementById('e').value.trim()})
+                    body: JSON.stringify(body)
                 });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.detail);
                 show(d.status === 'already_subscribed' ? 'already subscribed' : 'you are in', 'ok');
                 document.getElementById('e').value = '';
+                document.getElementById('n').value = '';
             } catch(e) {
                 show(e.message || 'something went wrong', 'err');
             }

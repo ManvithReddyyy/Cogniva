@@ -27,7 +27,7 @@ def get_database_url() -> str:
     db = _clean_env("POSTGRES_DB", "ai_news_aggregator")
     return f"postgresql://{user}:{password}@{host}:{port}/{db}"
 
-engine = create_engine(get_database_url())
+engine = create_engine(get_database_url(), connect_args={"connect_timeout": 10})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_session():

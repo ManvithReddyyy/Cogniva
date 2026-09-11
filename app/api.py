@@ -93,7 +93,30 @@ def on_startup():
         logger.info("Database tables verified.")
     except Exception as e:
         logger.error(f"Database startup notice: {e}")
+    
+    # One-time migration: add display_name column if it doesn't exist yet
+    try:
+        from sqlalchemy import text as sql_text
+        with engine.connect() as conn:
+            conn.execute(sql_text(
+                "ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS display_name VARCHAR"
+            ))
+            conn.commit()
+        logger.info("Migration: display_name column ensured on subscribers table.")
+    except Exception as e:
+        logger.warning(f"Migration notice (display_name): {e}")
+    
     start_background_scheduler()
+
+
+class SubscribeRequest(BaseModel):
+    email: str
+    display_name: Optional[str] = None
+
+
+class SetNameRequest(BaseModel):
+    email: str
+    display_name: str
 
 
 class EmailRequest(BaseModel):
@@ -106,14 +129,14 @@ def is_valid_email(email: str) -> bool:
 
 
 @app.post("/api/subscribe")
-async def subscribe(request: EmailRequest, background_tasks: BackgroundTasks):
+async def subscribe(request: SubscribeRequest, background_tasks: BackgroundTasks):
     email = request.email.strip().lower()
     if not is_valid_email(email):
         raise HTTPException(status_code=400, detail="Invalid email address")
     
     try:
         repo = Repository()
-        result = repo.add_subscriber(email)
+        result = repo.add_subscriber(email, display_name=request.display_name)
         logger.info(f"Subscription: {result}")
         
         # Instantly send current AI news digest to new subscriber in background
@@ -123,6 +146,28 @@ async def subscribe(request: EmailRequest, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Subscribe error: {e}")
         raise HTTPException(status_code=500, detail="Failed to subscribe. Please try again.")
+
+
+@app.post("/api/set-name")
+async def set_display_name(request: SetNameRequest):
+    email = request.email.strip().lower()
+    name = request.display_name.strip()
+    if not is_valid_email(email):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    if not name:
+        raise HTTPException(status_code=400, detail="Display name cannot be empty")
+    try:
+        repo = Repository()
+        result = repo.update_subscriber_display_name(email, name)
+        if result["status"] == "not_found":
+            raise HTTPException(status_code=404, detail="Subscriber not found")
+        logger.info(f"Display name updated: {result}")
+        return JSONResponse(content=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Set-name error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update name. Please try again.")
 
 
 @app.post("/api/unsubscribe")
@@ -236,6 +281,11 @@ async def serve_admin_page():
 @app.get("/unsubscribe")
 async def serve_unsubscribe_page():
     return FileResponse(static_dir / "index.html")
+
+
+@app.get("/set-name")
+async def serve_set_name_page():
+    return FileResponse(static_dir / "set_name.html")
 
 
 if static_dir.exists():

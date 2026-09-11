@@ -256,19 +256,27 @@ class Repository:
         )
         self.session.commit()
 
-    def add_subscriber(self, email: str) -> dict:
+    def add_subscriber(self, email: str, display_name: Optional[str] = None) -> dict:
         """Add a new subscriber or reactivate an existing one."""
         email = email.strip().lower()
+        name = display_name.strip() if display_name and display_name.strip() else None
         existing = self.session.query(Subscriber).filter_by(email=email).first()
         if existing:
             if existing.is_active:
+                # Update display_name if a new one is supplied
+                if name and not existing.display_name:
+                    existing.display_name = name
+                    self.session.commit()
                 return {"status": "already_subscribed", "email": email}
             existing.is_active = True
             existing.subscribed_at = datetime.now(timezone.utc)
+            if name:
+                existing.display_name = name
             self.session.commit()
             return {"status": "resubscribed", "email": email}
         subscriber = Subscriber(
             email=email,
+            display_name=name,
             subscribed_at=datetime.now(timezone.utc),
             is_active=True
         )
@@ -293,12 +301,40 @@ class Repository:
         subscribers = self.session.query(Subscriber).filter_by(is_active=True).all()
         return [s.email for s in subscribers]
 
+    def get_active_subscribers_with_names(self) -> List[Dict[str, Any]]:
+        """Get active subscribers with their display names for personalized emails."""
+        subscribers = self.session.query(Subscriber).filter_by(is_active=True).all()
+        return [
+            {"email": s.email, "display_name": s.display_name}
+            for s in subscribers
+        ]
+
+    def update_subscriber_display_name(self, email: str, display_name: str) -> dict:
+        """Set or update the display name for a subscriber."""
+        email = email.strip().lower()
+        name = display_name.strip() if display_name else None
+        sub = self.session.query(Subscriber).filter_by(email=email).first()
+        if not sub:
+            return {"status": "not_found", "email": email}
+        sub.display_name = name
+        self.session.commit()
+        return {"status": "updated", "email": email, "display_name": name}
+
+    def get_subscribers_without_name(self) -> List[str]:
+        """Get active subscriber emails that haven't set a display name yet."""
+        subscribers = self.session.query(Subscriber).filter(
+            Subscriber.is_active == True,
+            Subscriber.display_name.is_(None)
+        ).all()
+        return [s.email for s in subscribers]
+
     def get_all_subscribers_details(self) -> List[dict]:
         """Get full subscriber details for admin dashboard."""
         subscribers = self.session.query(Subscriber).order_by(Subscriber.subscribed_at.desc()).all()
         return [
             {
                 "email": s.email,
+                "display_name": s.display_name,
                 "subscribed_at": s.subscribed_at.strftime("%Y-%m-%d %H:%M:%S UTC") if s.subscribed_at else "N/A",
                 "is_active": s.is_active
             }

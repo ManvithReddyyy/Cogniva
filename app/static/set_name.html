@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cogniva — Set Your Name</title>
+    <meta name="description" content="Personalize your Cogniva digest by setting your preferred name.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #111; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; -webkit-font-smoothing: antialiased; }
+        .wrap { width: 100%; max-width: 340px; text-align: center; }
+        h1 { font-size: 20px; font-weight: 500; color: #555; margin-bottom: 8px; line-height: 1.5; }
+        .sub { font-size: 13px; color: #999; margin-bottom: 28px; line-height: 1.5; }
+        input { width: 100%; padding: 13px 16px; background: #fff; border: 1.5px solid #ddd; border-radius: 10px; color: #111; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; margin-bottom: 12px; }
+        input::placeholder { color: #aaa; }
+        input:focus { border-color: #999; }
+        input[readonly] { background: #f9f9f9; color: #888; cursor: default; }
+        button { width: 100%; padding: 13px; background: #666; border: none; border-radius: 10px; color: #fff; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .msg { margin-top: 14px; font-size: 13px; opacity: 0; transition: opacity 0.3s; }
+        .msg.show { opacity: 1; }
+        .msg.ok { color: #333; }
+        .msg.err { color: #c00; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>personalize your digest</h1>
+        <p class="sub">we'll use this to greet you in your emails</p>
+        <form onsubmit="saveName(event)">
+            <input type="email" id="email" placeholder="your email" required autocomplete="email" inputmode="email">
+            <input type="text" id="name" placeholder="what should we call you?" required autocomplete="given-name" maxlength="50">
+            <button type="submit" id="btn">save name</button>
+        </form>
+        <div class="msg" id="msg"></div>
+    </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const emailParam = params.get('email');
+        if (emailParam) {
+            const emailInput = document.getElementById('email');
+            emailInput.value = decodeURIComponent(emailParam);
+            emailInput.readOnly = true;
+        }
+        async function saveName(ev) {
+            ev.preventDefault();
+            const btn = document.getElementById('btn');
+            btn.disabled = true;
+            btn.textContent = '...';
+            document.getElementById('msg').className = 'msg';
+            const email = document.getElementById('email').value.trim();
+            const display_name = document.getElementById('name').value.trim();
+            try {
+                const r = await fetch('/api/set-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, display_name })
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.detail);
+                show('name saved — your next digest will greet you by name', 'ok');
+                document.getElementById('name').value = '';
+            } catch (e) {
+                show(e.message || 'something went wrong', 'err');
+            }
+            btn.disabled = false;
+            btn.textContent = 'save name';
+        }
+        function show(t, c) {
+            const m = document.getElementById('msg');
+            m.textContent = t;
+            m.className = 'msg ' + c + ' show';
+            setTimeout(() => m.classList.remove('show'), 5000);
+        }
+    </script>
+</body>
+</html>

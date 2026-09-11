@@ -61,6 +61,7 @@ class Subscriber(Base):
     __tablename__ = "subscribers"
     
     email = Column(String, primary_key=True)
+    display_name = Column(String, nullable=True)
     subscribed_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
 
