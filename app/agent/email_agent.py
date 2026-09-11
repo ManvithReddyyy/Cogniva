@@ -80,7 +80,7 @@ class EmailAgent:
             self.openai_client = None
 
     def generate_introduction(self, ranked_articles: List, recipient_name: Optional[str] = None) -> EmailIntroduction:
-        name = recipient_name or self.user_profile.get('name', 'there')
+        name = (recipient_name.strip() if recipient_name else None) or "there"
         if not ranked_articles:
             return EmailIntroduction(
                 greeting=f"Hey {name}, here is your daily digest of AI news for {datetime.now().strftime('%B %d, %Y')}.",
