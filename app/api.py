@@ -94,15 +94,19 @@ def on_startup():
     except Exception as e:
         logger.error(f"Database startup notice: {e}")
     
-    # One-time migration: add display_name column if it doesn't exist yet
+    # Ensure display_name column exists without blocking table locks
     try:
         from sqlalchemy import text as sql_text
         with engine.connect() as conn:
-            conn.execute(sql_text(
-                "ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS display_name VARCHAR"
-            ))
-            conn.commit()
-        logger.info("Migration: display_name column ensured on subscribers table.")
+            check = conn.execute(sql_text(
+                "SELECT 1 FROM information_schema.columns WHERE table_name='subscribers' AND column_name='display_name'"
+            )).scalar()
+            if not check:
+                conn.execute(sql_text(
+                    "ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS display_name VARCHAR"
+                ))
+                conn.commit()
+        logger.info("Database schema: subscribers.display_name verified.")
     except Exception as e:
         logger.warning(f"Migration notice (display_name): {e}")
     

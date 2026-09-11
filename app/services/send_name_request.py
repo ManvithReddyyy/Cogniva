@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import logging
 from pathlib import Path
@@ -20,9 +20,9 @@ def send_name_request_emails():
     One-shot script: send a short email to every active subscriber who
     has not yet set a display name, asking them to personalize their digest.
     """
-    site_url = os.getenv("SITE_URL", "").rstrip("/")
+    site_url = os.getenv("SITE_URL", "https://cogniva-hn3p.onrender.com").rstrip("/")
     if not site_url:
-        logger.warning("SITE_URL env var not set — links will be relative. Set SITE_URL=https://your-domain.com")
+        logger.warning("SITE_URL env var not set — links will be relative.")
 
     repo = Repository()
     emails = repo.get_subscribers_without_name()
